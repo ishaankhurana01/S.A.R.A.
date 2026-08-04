@@ -1,0 +1,14 @@
+[project]
+name = "sara"
+version = "0.1.0"
+description = "S.A.R.A. — Smart Autonomous Responsive Assistant, a local AI operating companion."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_ignores = true
+disallow_untyped_defs = true

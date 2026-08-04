@@ -1,0 +1,72 @@
+# S.A.R.A. — settings.yaml
+#
+# This is the single source of truth for every tunable in the project.
+# It is validated against config/config_schema.py at startup — an unknown
+# key or a value of the wrong type fails fast with a clear error rather
+# than causing confusing behavior later.
+#
+# Sections map 1:1 to the module that owns them.
+
+app:
+  name: "S.A.R.A."
+  version: "0.1.0"
+  launch_on_startup: false
+  environment: "development"          # development | production
+
+logging:
+  log_dir: "logs"
+  console_level: "INFO"
+  file_level: "DEBUG"
+  rotation: "10 MB"
+  retention: "14 days"
+
+event_bus:
+  isolate_subscriber_errors: true     # one bad subscriber can't break delivery to others
+
+context_engine:
+  enabled: true
+  poll_interval_seconds: 2.0
+  enabled_collectors:
+    - system
+    - process
+    - window
+    - clipboard
+
+memory:
+  working_memory_max_turns: 50
+  episodic_db_path: "data/episodic.db"
+  semantic_db_path: "data/semantic.db"
+  semantic_vector_path: "data/chroma"
+  procedural_db_path: "data/procedural.db"
+
+llm:
+  provider: "ollama"
+  model: "qwen2.5:7b"
+  host: "http://localhost:11434"
+  temperature: 0.7
+  max_context_tokens: 8192
+
+voice:
+  wake_word_enabled: false            # off until Phase 4 (voice/) is implemented
+  wake_word_phrase: "hey sara"
+  stt_model_size: "base"
+  tts_voice: "en_US-lessac-medium"
+
+automation:
+  enabled: false                      # off until Phase 6 (automation/) is implemented
+
+permissions:
+  default_policy: "ask"               # allow | ask | deny — conservative by default
+  scopes:
+    - filesystem.read
+    - filesystem.write
+    - browser.control
+    - microphone.listen
+    - desktop.input_control
+    - network.outbound
+
+ui:
+  always_on_top: true
+  theme: "dark"
+  global_hotkey: "ctrl+alt+s"
+  start_minimized_to_tray: true
