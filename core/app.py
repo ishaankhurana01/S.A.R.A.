@@ -17,6 +17,9 @@ Startup order (and why it's fixed):
                                        handed them via constructor threading
     5. Start the Context Engine     — first real subsystem; publishes ContextUpdated
                                        onto the now-existing event bus
+    6. Build the Executive Agent    — registers the placeholder Worker Agents
+                                       (Desktop, Memory, Notification) so the
+                                       delegation framework is live end-to-end
 """
 
 from __future__ import annotations
@@ -28,6 +31,10 @@ from core.event_bus import EventBus
 from core.service_registry import ServiceRegistry
 from events.event_types import ApplicationShuttingDown, ApplicationStarted
 from utils.logger import configure_logging, get_logger
+from agents.executive.executive_agent import ExecutiveAgent
+from agents.desktop_agent import DesktopAgent
+from agents.memory_agent import MemoryAgent
+from agents.notification_agent import NotificationAgent
 
 logger = get_logger(__name__)
 
@@ -49,6 +56,7 @@ class Application:
         self.event_bus: EventBus | None = None
         self.registry: ServiceRegistry | None = None
         self.context_engine: ContextEngine | None = None
+        self.executive_agent: ExecutiveAgent | None = None
         self._started = False
 
     def startup(self) -> None:
@@ -100,6 +108,25 @@ class Application:
         else:
             logger.info("Context Engine disabled via config; skipping startup.")
 
+        # 6. Executive Agent Framework — built on top of the event bus (3)
+        #    and, when available, the Context Engine (5) for its Context
+        #    Gathering stage. Worker Agents registered here are still
+        #    placeholders (Phase 2, Day 2) — they log and return success,
+        #    performing no real domain work.
+        self.executive_agent = ExecutiveAgent(
+            event_bus=self.event_bus,
+            context_engine=self.context_engine,
+        )
+        self.registry.register(ExecutiveAgent, self.executive_agent)
+        self.executive_agent.register_agent(DesktopAgent(event_bus=self.event_bus))
+        self.executive_agent.register_agent(MemoryAgent(event_bus=self.event_bus))
+        self.executive_agent.register_agent(NotificationAgent(event_bus=self.event_bus))
+        logger.info(
+            "Executive Agent ready with {} registered agent(s), {} known capabilities",
+            len(self.executive_agent.registered_agent_names),
+            len(self.executive_agent.known_capabilities),
+        )
+
         self._started = True
         self.event_bus.publish(ApplicationStarted(source="core.app.Application"))
         logger.info("S.A.R.A. core initialized")
@@ -115,6 +142,10 @@ class Application:
 
         if self.context_engine is not None:
             self.context_engine.stop()
+
+        if self.executive_agent is not None:
+            for agent_name in list(self.executive_agent.registered_agent_names):
+                self.executive_agent.unregister_agent(agent_name)
 
         self._started = False
         logger.info("Shutdown complete")

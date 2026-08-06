@@ -121,7 +121,7 @@ class AppConfig(BaseModel):
     """Top-level application metadata and lifecycle behavior."""
 
     name: str = "S.A.R.A."
-    version: str = "0.1.0"
+    version: str = "0.2.0"
     launch_on_startup: bool = False
     environment: str = "development"  # development | production
 

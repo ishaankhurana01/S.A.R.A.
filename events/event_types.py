@@ -100,14 +100,6 @@ class UserUtterance(Event):
 
 
 @dataclass(frozen=True)
-class AgentDelegated(Event):
-    """Published by the Executive Agent when it delegates work to a Worker Agent."""
-
-    agent_name: str = ""
-    task_description: str = ""
-
-
-@dataclass(frozen=True)
 class AssistantResponse(Event):
     """A response ready to be spoken and/or displayed."""
 
@@ -120,3 +112,102 @@ class PermissionRequested(Event):
 
     scope: str = ""
     requesting_agent: str = ""
+
+
+# --------------------------------------------------------------------------- #
+# Executive Agent Framework — task lifecycle events (Phase 2, Day 2)
+#
+# Every request the Executive Agent handles moves through this event
+# sequence, always in this order for a given task_id:
+#   TaskCreated -> AgentDelegated -> (TaskCompleted | TaskFailed | TaskTimeout)
+#
+# task_id correlates all events belonging to the same request, which is
+# what lets agents.executive.reasoning_loop.ReasoningLoop match a
+# TaskCompleted/TaskFailed event back to the task it is waiting on.
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class TaskCreated(Event):
+    """Published the moment the Executive Agent accepts a request (reasoning loop step 1: Input)."""
+
+    task_id: str = ""
+    capability: str = ""
+    description: str = ""
+
+
+@dataclass(frozen=True)
+class AgentDelegated(Event):
+    """Published by the Executive Agent when it delegates a task to a specific Worker Agent.
+
+    This is the *only* message a Worker Agent (``agents.base_agent.BaseAgent``)
+    listens for. Every subscribed agent receives every ``AgentDelegated``
+    event and is responsible for ignoring it if ``agent_name`` does not
+    match its own name — this keeps the Executive Agent from ever needing
+    a direct reference to a specific agent instance.
+    """
+
+    task_id: str = ""
+    agent_name: str = ""
+    capability: str = ""
+    task_description: str = ""
+    payload: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class TaskCompleted(Event):
+    """Published by a Worker Agent when it finishes a delegated task successfully."""
+
+    task_id: str = ""
+    agent_name: str = ""
+    result: Any = None
+
+
+@dataclass(frozen=True)
+class TaskFailed(Event):
+    """Published when a task cannot be completed.
+
+    Attributes:
+        reason: A short machine-readable failure category, e.g.
+            ``"unknown_capability"`` (Planning found no agent for the
+            request) or ``"agent_exception"`` (the assigned agent raised
+            while handling it). Distinct from ``error_message``, which is
+            the human-readable detail — this split is what lets callers
+            branch on failure type without string-matching messages.
+    """
+
+    task_id: str = ""
+    agent_name: str = ""
+    error_message: str = ""
+    reason: str = ""
+
+
+@dataclass(frozen=True)
+class TaskTimeout(Event):
+    """Published when a delegated task does not complete within its allotted time.
+
+    A Worker Agent that never publishes ``TaskCompleted``/``TaskFailed``
+    (hung, crashed silently, or simply too slow) must not be able to block
+    the Executive Agent forever — this event marks that boundary being hit.
+    """
+
+    task_id: str = ""
+    capability: str = ""
+    agent_name: str = ""
+    timeout_seconds: float = 0.0
+
+
+# --------------------------------------------------------------------------- #
+# Capability Registry events (Phase 2, Day 2)
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class AgentRegistered(Event):
+    """Published when a Worker Agent successfully registers its capabilities."""
+
+    agent_name: str = ""
+    capabilities: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class AgentUnregistered(Event):
+    """Published when a Worker Agent is removed from the Capability Registry."""
+
+    agent_name: str = ""

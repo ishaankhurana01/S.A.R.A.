@@ -115,6 +115,30 @@ class CapabilityNotFoundError(AgentError):
     """Raised when the Executive Agent cannot find any agent for a request."""
 
 
+class AgentAlreadyRegisteredError(AgentError):
+    """Raised when registering an agent name that is already in the Capability Registry.
+
+    Requires ``allow_override=True`` to replace intentionally, mirroring
+    ``core.service_registry.ServiceRegistry``'s override protection — a
+    second agent claiming the same name should never silently replace the
+    first.
+    """
+
+
+class CapabilityAlreadyRegisteredError(AgentError):
+    """Raised when two agents attempt to claim the same capability string.
+
+    Each capability must resolve to exactly one agent so the Executive
+    Agent's Planning step is unambiguous. If two agents legitimately need
+    to share a capability name in a later phase, that requires an explicit
+    routing/priority strategy — not a silent last-write-wins.
+    """
+
+
+class AgentTimeoutError(AgentError):
+    """Raised (in contexts that propagate rather than return a failed TaskResult) on a task timeout."""
+
+
 # --------------------------------------------------------------------------- #
 # Permissions (reserved for later phases)
 # --------------------------------------------------------------------------- #

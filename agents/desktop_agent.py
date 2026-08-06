@@ -1,0 +1,43 @@
+"""
+Desktop Agent (placeholder).
+
+Will eventually own ``automation/`` (opening/closing applications, input
+control, system settings — see the architecture doc's Automation Agent
+section). For this phase it only proves the delegation path works: it
+logs what it received and reports success, with no real OS interaction.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from agents.base_agent import BaseAgent
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+_CAPABILITIES: tuple[str, ...] = (
+    "desktop.open_application",
+    "desktop.close_application",
+)
+
+
+class DesktopAgent(BaseAgent):
+    """Placeholder Worker Agent for desktop/application control tasks."""
+
+    @property
+    def name(self) -> str:
+        return "desktop_agent"
+
+    @property
+    def capabilities(self) -> tuple[str, ...]:
+        return _CAPABILITIES
+
+    def handle(self, task_description: str, *, context: dict[str, Any]) -> Any:
+        logger.info("[DesktopAgent] (placeholder) received: {}", task_description)
+        return {
+            "status": "success",
+            "agent": self.name,
+            "note": "placeholder — no real desktop automation performed",
+            "received_task": task_description,
+        }

@@ -9,7 +9,7 @@
 
 app:
   name: "S.A.R.A."
-  version: "0.1.0"
+  version: "0.2.0"
   launch_on_startup: false
   environment: "development"          # development | production
 
