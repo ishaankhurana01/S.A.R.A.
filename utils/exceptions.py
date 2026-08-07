@@ -140,6 +140,38 @@ class AgentTimeoutError(AgentError):
 
 
 # --------------------------------------------------------------------------- #
+# LLM (llm/providers/, Phase 3)
+# --------------------------------------------------------------------------- #
+class LLMError(SaraError):
+    """Base class for every failure raised by an ``core.interfaces.LLMProvider``.
+
+    ``agents.conversation_agent.ConversationAgent`` deliberately does not
+    catch these — they propagate up to ``agents.base_agent.BaseAgent``,
+    which already turns any exception from ``handle()`` into a
+    ``TaskFailed`` event (reason=``"agent_exception"``). Catching them
+    here too would just duplicate that handling; the exception hierarchy
+    exists so the *message* is specific, not so the agent needs extra
+    try/except blocks.
+    """
+
+
+class LLMProviderUnavailableError(LLMError):
+    """Raised when the LLM backend cannot be reached at all (e.g. Ollama isn't running)."""
+
+
+class LLMModelNotFoundError(LLMError):
+    """Raised when the configured model is not available on the backend."""
+
+
+class LLMTimeoutError(LLMError):
+    """Raised when a request to the LLM backend exceeds ``LLMConfig.request_timeout_seconds``."""
+
+
+class LLMInvalidResponseError(LLMError):
+    """Raised when the backend responds successfully but the response body is malformed or empty."""
+
+
+# --------------------------------------------------------------------------- #
 # Permissions (reserved for later phases)
 # --------------------------------------------------------------------------- #
 class PermissionError_(AgentError):

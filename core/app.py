@@ -17,9 +17,10 @@ Startup order (and why it's fixed):
                                        handed them via constructor threading
     5. Start the Context Engine     — first real subsystem; publishes ContextUpdated
                                        onto the now-existing event bus
-    6. Build the Executive Agent    — registers the placeholder Worker Agents
-                                       (Desktop, Memory, Notification) so the
-                                       delegation framework is live end-to-end
+    6. Build the Executive Agent    — registers the Worker Agents (Desktop,
+                                       Memory, Notification — still placeholders;
+                                       Conversation — real, backed by Ollama) so
+                                       the delegation framework is live end-to-end
 """
 
 from __future__ import annotations
@@ -28,10 +29,13 @@ from config.config_loader import ConfigLoader
 from config.config_schema import SaraConfig
 from context.context_engine import ContextEngine
 from core.event_bus import EventBus
+from core.interfaces import LLMProvider
 from core.service_registry import ServiceRegistry
 from events.event_types import ApplicationShuttingDown, ApplicationStarted
+from llm.providers.ollama_provider import OllamaProvider
 from utils.logger import configure_logging, get_logger
 from agents.executive.executive_agent import ExecutiveAgent
+from agents.conversation_agent import ConversationAgent
 from agents.desktop_agent import DesktopAgent
 from agents.memory_agent import MemoryAgent
 from agents.notification_agent import NotificationAgent
@@ -56,6 +60,7 @@ class Application:
         self.event_bus: EventBus | None = None
         self.registry: ServiceRegistry | None = None
         self.context_engine: ContextEngine | None = None
+        self.llm_provider: OllamaProvider | None = None
         self.executive_agent: ExecutiveAgent | None = None
         self._started = False
 
@@ -108,11 +113,24 @@ class Application:
         else:
             logger.info("Context Engine disabled via config; skipping startup.")
 
-        # 6. Executive Agent Framework — built on top of the event bus (3)
+        # 6a. LLM Provider — constructing this only stores config (host,
+        #     model, timeout); it makes no network call, so it's safe to
+        #     build even if Ollama isn't running yet. ConversationAgent is
+        #     the only consumer; nothing else resolves LLMProvider.
+        self.llm_provider = OllamaProvider(
+            host=self.config.llm.host,
+            model=self.config.llm.model,
+            request_timeout_seconds=self.config.llm.request_timeout_seconds,
+            default_temperature=self.config.llm.temperature,
+        )
+        self.registry.register(LLMProvider, self.llm_provider)
+
+        # 6b. Executive Agent Framework — built on top of the event bus (3)
         #    and, when available, the Context Engine (5) for its Context
-        #    Gathering stage. Worker Agents registered here are still
-        #    placeholders (Phase 2, Day 2) — they log and return success,
-        #    performing no real domain work.
+        #    Gathering stage. Desktop/Memory/Notification remain Phase 2
+        #    placeholders (log and return success, no real domain work).
+        #    Conversation is the first agent doing real work — it routes
+        #    through the LLM Provider built in 6a.
         self.executive_agent = ExecutiveAgent(
             event_bus=self.event_bus,
             context_engine=self.context_engine,
@@ -121,6 +139,9 @@ class Application:
         self.executive_agent.register_agent(DesktopAgent(event_bus=self.event_bus))
         self.executive_agent.register_agent(MemoryAgent(event_bus=self.event_bus))
         self.executive_agent.register_agent(NotificationAgent(event_bus=self.event_bus))
+        self.executive_agent.register_agent(
+            ConversationAgent(event_bus=self.event_bus, llm_provider=self.llm_provider)
+        )
         logger.info(
             "Executive Agent ready with {} registered agent(s), {} known capabilities",
             len(self.executive_agent.registered_agent_names),

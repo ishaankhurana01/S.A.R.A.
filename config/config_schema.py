@@ -63,13 +63,14 @@ class MemoryConfig(BaseModel):
 
 
 class LLMConfig(BaseModel):
-    """Controls llm.providers.* (implemented in a later phase)."""
+    """Controls llm.providers.* (llm.providers.ollama_provider.OllamaProvider, Phase 3)."""
 
     provider: str = "ollama"
     model: str = "qwen2.5:7b"
     host: str = "http://localhost:11434"
     temperature: float = 0.7
     max_context_tokens: int = 8192
+    request_timeout_seconds: float = 30.0
 
 
 class VoiceConfig(BaseModel):
@@ -121,7 +122,7 @@ class AppConfig(BaseModel):
     """Top-level application metadata and lifecycle behavior."""
 
     name: str = "S.A.R.A."
-    version: str = "0.2.0"
+    version: str = "0.3.0"
     launch_on_startup: bool = False
     environment: str = "development"  # development | production
 

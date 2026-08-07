@@ -14,7 +14,10 @@ pywin32>=306; sys_platform == "win32"
 PySide6>=6.6
 
 # --- Phase 3: LLM ---
-ollama>=0.1
+# OllamaProvider talks to Ollama's REST API directly via `requests` rather
+# than the official `ollama` client package — see llm/providers/ollama_provider.py
+# docstring for why (smaller surface, easier to mock in tests).
+requests>=2.31
 
 # --- Phase 4: Voice ---
 faster-whisper>=1.0

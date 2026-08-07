@@ -1,6 +1,6 @@
 [project]
 name = "sara"
-version = "0.2.0"
+version = "0.3.0"
 description = "S.A.R.A. — Smart Autonomous Responsive Assistant, a local AI operating companion."
 requires-python = ">=3.11"
 
