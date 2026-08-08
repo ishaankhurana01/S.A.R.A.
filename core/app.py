@@ -17,10 +17,14 @@ Startup order (and why it's fixed):
                                        handed them via constructor threading
     5. Start the Context Engine     — first real subsystem; publishes ContextUpdated
                                        onto the now-existing event bus
-    6. Build the Executive Agent    — registers the Worker Agents (Desktop,
-                                       Memory, Notification — still placeholders;
-                                       Conversation — real, backed by Ollama) so
-                                       the delegation framework is live end-to-end
+    6. Build the Executive Agent    — registers the Worker Agents: Memory
+                                       and Notification are still Phase 2
+                                       placeholders; Conversation (Ollama)
+                                       and DesktopAutomation (real OS
+                                       actions, platform-selected) do real
+                                       work, so the framework is live
+                                       end-to-end for both talking and
+                                       doing
 """
 
 from __future__ import annotations
@@ -33,10 +37,12 @@ from core.interfaces import LLMProvider
 from core.service_registry import ServiceRegistry
 from events.event_types import ApplicationShuttingDown, ApplicationStarted
 from llm.providers.ollama_provider import OllamaProvider
+from automation.desktop_platform import DesktopPlatform
+from automation.platform_factory import get_platform
 from utils.logger import configure_logging, get_logger
 from agents.executive.executive_agent import ExecutiveAgent
 from agents.conversation_agent import ConversationAgent
-from agents.desktop_agent import DesktopAgent
+from agents.desktop_automation_agent import DesktopAutomationAgent
 from agents.memory_agent import MemoryAgent
 from agents.notification_agent import NotificationAgent
 
@@ -61,6 +67,7 @@ class Application:
         self.registry: ServiceRegistry | None = None
         self.context_engine: ContextEngine | None = None
         self.llm_provider: OllamaProvider | None = None
+        self.desktop_platform: DesktopPlatform | None = None
         self.executive_agent: ExecutiveAgent | None = None
         self._started = False
 
@@ -127,20 +134,40 @@ class Application:
 
         # 6b. Executive Agent Framework — built on top of the event bus (3)
         #    and, when available, the Context Engine (5) for its Context
-        #    Gathering stage. Desktop/Memory/Notification remain Phase 2
+        #    Gathering stage. Memory/Notification remain Phase 2
         #    placeholders (log and return success, no real domain work).
-        #    Conversation is the first agent doing real work — it routes
-        #    through the LLM Provider built in 6a.
+        #    Conversation routes through the LLM Provider built in 6a;
+        #    DesktopAutomation routes through a platform backend selected
+        #    automatically for the running OS. Conversation also gets a
+        #    reference back to the Executive Agent itself so it can
+        #    re-delegate recognized desktop-action requests — see
+        #    agents.conversation_agent.ConversationAgent's docstring.
         self.executive_agent = ExecutiveAgent(
             event_bus=self.event_bus,
             context_engine=self.context_engine,
         )
         self.registry.register(ExecutiveAgent, self.executive_agent)
-        self.executive_agent.register_agent(DesktopAgent(event_bus=self.event_bus))
         self.executive_agent.register_agent(MemoryAgent(event_bus=self.event_bus))
         self.executive_agent.register_agent(NotificationAgent(event_bus=self.event_bus))
+
+        if self.config.automation.enabled:
+            self.desktop_platform = get_platform(
+                screenshot_directory=self.config.automation.screenshot_directory
+            )
+            self.registry.register(DesktopPlatform, self.desktop_platform)
+            self.executive_agent.register_agent(
+                DesktopAutomationAgent(event_bus=self.event_bus, platform=self.desktop_platform)
+            )
+        else:
+            logger.info("Desktop automation disabled via config; DesktopAutomationAgent not registered.")
+
         self.executive_agent.register_agent(
-            ConversationAgent(event_bus=self.event_bus, llm_provider=self.llm_provider)
+            ConversationAgent(
+                event_bus=self.event_bus,
+                llm_provider=self.llm_provider,
+                executive=self.executive_agent,
+                desktop_timeout_seconds=self.config.automation.action_timeout_seconds,
+            )
         )
         logger.info(
             "Executive Agent ready with {} registered agent(s), {} known capabilities",

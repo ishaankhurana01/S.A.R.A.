@@ -80,7 +80,9 @@ class BaseAgent(Agent):
 
         start = time.monotonic()
         try:
-            result = self.handle(event.task_description, context=event.payload)
+            context = dict(event.payload)
+            context["_capability"] = event.capability
+            result = self.handle(event.task_description, context=context)
         except Exception as exc:  # noqa: BLE001 - any agent failure must become TaskFailed, never crash the bus
             duration = time.monotonic() - start
             logger.error("{} failed task {} after {:.3f}s: {}", self.name, event.task_id, duration, exc)
@@ -114,8 +116,16 @@ class BaseAgent(Agent):
             task_description: What the Executive Agent asked this agent
                 to do.
             context: The task payload assembled by the reasoning loop's
-                Context Gathering step (includes a ``"_context"`` key with
-                the current World Model snapshot, when available).
+                Context Gathering step, plus one key ``BaseAgent`` always
+                adds itself: ``"_capability"``, the exact capability
+                string this delegation was routed for (e.g.
+                ``"desktop.open_application"``). This is what lets an
+                agent that declares more than one capability (e.g.
+                ``DesktopAutomationAgent``) dispatch internally without
+                the Executive Agent needing to encode that in
+                ``task_description``. A single-capability agent can
+                safely ignore it. Also includes ``"_context"`` with the
+                current World Model snapshot, when available.
 
         Returns:
             Any JSON-serializable-ish result describing the outcome; it is

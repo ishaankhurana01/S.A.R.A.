@@ -54,7 +54,9 @@ voice:
   tts_voice: "en_US-lessac-medium"
 
 automation:
-  enabled: false                      # off until Phase 6 (automation/) is implemented
+  enabled: true                        # gates DesktopAutomationAgent registration
+  screenshot_directory: "data/screenshots"
+  action_timeout_seconds: 10.0         # ConversationAgent's timeout when re-delegating a desktop action
 
 permissions:
   default_policy: "ask"               # allow | ask | deny — conservative by default

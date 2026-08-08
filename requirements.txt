@@ -43,3 +43,5 @@ mss>=9.0
 # --- Testing (all phases) ---
 pytest>=8.0
 pytest-cov>=5.0
+
+mss>=9.0

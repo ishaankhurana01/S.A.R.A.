@@ -83,9 +83,16 @@ class VoiceConfig(BaseModel):
 
 
 class AutomationConfig(BaseModel):
-    """Controls automation/* (implemented in a later phase)."""
+    """Controls automation.desktop_platform / DesktopAutomationAgent (Phase 4).
 
-    enabled: bool = False
+    ``enabled`` gates whether ``core.app.Application`` wires
+    ``DesktopAutomationAgent`` in at all — set False to run S.A.R.A. with
+    conversation only and no OS-level capabilities registered.
+    """
+
+    enabled: bool = True
+    screenshot_directory: str = "data/screenshots"
+    action_timeout_seconds: float = 10.0
 
 
 class PermissionsConfig(BaseModel):

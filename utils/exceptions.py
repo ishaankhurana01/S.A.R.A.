@@ -172,6 +172,48 @@ class LLMInvalidResponseError(LLMError):
 
 
 # --------------------------------------------------------------------------- #
+# Desktop Automation (automation/, Phase 4)
+# --------------------------------------------------------------------------- #
+class DesktopAutomationError(SaraError):
+    """Base class for every failure raised by a ``automation.desktop_platform.DesktopPlatform``.
+
+    ``agents.desktop_automation_agent.DesktopAutomationAgent`` catches
+    this specific hierarchy (not bare ``Exception``) so it can distinguish
+    "the requested desktop action failed in an expected way" (encoded as
+    ``{"success": False, ...}`` in the structured result, per requirement
+    #9) from a genuine programming bug in the agent itself, which should
+    still propagate to ``agents.base_agent.BaseAgent`` and become a
+    ``TaskFailed`` event rather than being silently swallowed.
+    """
+
+
+class InvalidDesktopTargetError(DesktopAutomationError):
+    """Raised when an application name/URL argument is empty, too long, or fails safety validation.
+
+    This is the enforcement point for requirement #6 ("never allow
+    arbitrary shell execution") at the input layer: every target string
+    passes through validation before it ever reaches a subprocess argv
+    list or ``webbrowser.open``.
+    """
+
+
+class ApplicationLaunchError(DesktopAutomationError):
+    """Raised when an application (or URL) could not be launched/opened."""
+
+
+class ApplicationCloseError(DesktopAutomationError):
+    """Raised when no matching running process was found, or it could not be terminated."""
+
+
+class ScreenshotCaptureError(DesktopAutomationError):
+    """Raised when a screenshot could not be captured or saved to disk."""
+
+
+class UnsupportedPlatformError(DesktopAutomationError):
+    """Raised when the current OS has no ``DesktopPlatform`` implementation."""
+
+
+# --------------------------------------------------------------------------- #
 # Permissions (reserved for later phases)
 # --------------------------------------------------------------------------- #
 class PermissionError_(AgentError):
